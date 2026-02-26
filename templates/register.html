@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="center">
+  <div class="card auth">
+    <div class="h1">Criar conta</div>
+    <p class="p">Crie seu acesso e comece a organizar suas tarefas.</p>
+
+    <form method="post">
+      <label>Email</label>
+      <input name="email" type="email" placeholder="seuemail@exemplo.com" required>
+
+      <label>Senha</label>
+      <input name="password" type="password" placeholder="Crie uma senha" required>
+
+      <button class="btn" type="submit">Cadastrar</button>
+    </form>
+
+    <p class="p" style="margin-top:14px;">
+      Já tem conta? <a href="{{ url_for('login') }}">Entrar</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

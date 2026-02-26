@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth">
+  <div class="auth-left">
+    <div class="auth-box">
+      <h1 class="auth-title">Minhas tarefas</h1>
+      <p class="auth-sub">Organize seu dia: pendentes, prazos e concluídas.</p>
+
+      <form method="post">
+        <label>Título</label>
+        <input name="title" placeholder="Ex: Estudar 30 min" required>
+
+        <label>Observação (opcional)</label>
+        <input name="notes" placeholder="Ex: capítulo 2">
+
+        <label>Data (opcional)</label>
+        <input name="due_date" type="date">
+
+        <label>Prioridade</label>
+        <select name="priority" style="width:100%;height:52px;border-radius:12px;border:1px solid var(--border);padding:0 14px;">
+          <option value="1">Alta</option>
+          <option value="2" selected>Média</option>
+          <option value="3">Baixa</option>
+        </select>
+
+        <button class="btn" type="submit">Adicionar tarefa</button>
+      </form>
+
+      <div style="margin-top:26px;">
+        <h2 style="margin:0 0 12px;">Pendentes</h2>
+
+        {% for t in pending %}
+          <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+              <div>
+                <div style="font-weight:800;">{{ t.title }}</div>
+                {% if t.notes %}<div style="color:var(--muted);margin-top:4px;">{{ t.notes }}</div>{% endif %}
+                <div style="color:var(--muted);font-size:13px;margin-top:6px;">
+                  {% if t.due_date %}Prazo: {{ t.due_date.strftime("%d/%m/%Y") }}{% else %}Sem prazo{% endif %}
+                  • Prioridade: {{ "Alta" if t.priority==1 else ("Média" if t.priority==2 else "Baixa") }}
+                </div>
+              </div>
+
+              <div style="display:flex;gap:8px;">
+                <form method="post" action="{{ url_for('toggle_task', task_id=t.id) }}">
+                  <button type="submit" class="btn" style="height:40px;padding:0 12px;">Feita</button>
+                </form>
+                <form method="post" action="{{ url_for('delete_task', task_id=t.id) }}">
+                  <button type="submit" style="height:40px;padding:0 12px;border-radius:12px;border:1px solid var(--border);background:#fff;cursor:pointer;">
+                    Excluir
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div style="color:var(--muted);">Nenhuma tarefa pendente ✅</div>
+        {% endfor %}
+      </div>
+
+      <div style="margin-top:26px;">
+        <h2 style="margin:0 0 12px;">Concluídas</h2>
+
+        {% for t in done %}
+          <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;opacity:.75;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+              <div>
+                <div style="font-weight:800;text-decoration:line-through;">{{ t.title }}</div>
+                <div style="color:var(--muted);font-size:13px;margin-top:6px;">
+                  {% if t.due_date %}Prazo: {{ t.due_date.strftime("%d/%m/%Y") }}{% else %}Sem prazo{% endif %}
+                </div>
+              </div>
+              <form method="post" action="{{ url_for('toggle_task', task_id=t.id) }}">
+                <button type="submit" style="height:40px;padding:0 12px;border-radius:12px;border:1px solid var(--border);background:#fff;cursor:pointer;">
+                  Voltar
+                </button>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <div style="color:var(--muted);">Nenhuma tarefa concluída ainda.</div>
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+
+  <div class="auth-right"></div>
+</div>
+{% endblock %}
