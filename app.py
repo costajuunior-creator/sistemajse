@@ -1,13 +1,23 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_login import (
+    LoginManager, UserMixin, login_user, login_required,
+    logout_user, current_user
+)
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "troque-por-uma-chave-grande-e-secreta")
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
+
+# ✅ Banco real no Railway: DATABASE_URL (PostgreSQL)
+db_url = os.getenv("DATABASE_URL")
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+# Fallback local (no seu PC) continua SQLite
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///database.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
@@ -37,7 +47,7 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 
-@app.route("/")
+@app.get("/")
 def home():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard"))
@@ -85,7 +95,7 @@ def login():
     return render_template("login.html")
 
 
-@app.route("/logout")
+@app.get("/logout")
 @login_required
 def logout():
     logout_user()
@@ -120,7 +130,6 @@ def dashboard():
     labels = [d.strftime("%d/%m") for d in days]
     created_counts = [sum(1 for t in tasks if t.created_at.date() == d) for d in days]
     completed_counts = [sum(1 for t in done if t.created_at.date() == d) for d in days]
-
     stats = {"labels": labels, "created": created_counts, "completed": completed_counts}
 
     # eventos para calendário
