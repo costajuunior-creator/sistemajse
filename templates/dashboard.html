@@ -34,10 +34,10 @@
           <div class="meta">Criada em {{ t.created_at.strftime("%d/%m/%Y %H:%M") }}</div>
         </div>
         <div style="display:flex; gap:8px;">
-          <form method="post" action="{{ url_for('toggle', task_id=t.id) }}">
+          <form method="post" action="{{ url_for('toggle_task', task_id=t.id) }}">
             <button class="btn-ghost" type="submit">Concluir</button>
           </form>
-          <form method="post" action="{{ url_for('delete', task_id=t.id) }}">
+          <form method="post" action="{{ url_for('delete_task', task_id=t.id) }}">
             <button class="btn-danger" type="submit">Excluir</button>
           </form>
         </div>
@@ -58,10 +58,10 @@
           <div class="meta">Criada em {{ t.created_at.strftime("%d/%m/%Y %H:%M") }}</div>
         </div>
         <div style="display:flex; gap:8px;">
-          <form method="post" action="{{ url_for('toggle', task_id=t.id) }}">
+          <form method="post" action="{{ url_for('toggle_task', task_id=t.id) }}">
             <button class="btn-ghost" type="submit">Reabrir</button>
           </form>
-          <form method="post" action="{{ url_for('delete', task_id=t.id) }}">
+          <form method="post" action="{{ url_for('delete_task', task_id=t.id) }}">
             <button class="btn-danger" type="submit">Excluir</button>
           </form>
         </div>
@@ -88,14 +88,10 @@
   </div>
 </div>
 
-<!-- Chart.js (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-<!-- FullCalendar (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 
 <script>
-  // ===== Gráfico =====
   const stats = {{ stats|tojson }};
   const ctx = document.getElementById('tasksChart');
   new Chart(ctx, {
@@ -110,9 +106,7 @@
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: '#e5e7eb' } }
-      },
+      plugins: { legend: { labels: { color: '#e5e7eb' } } },
       scales: {
         x: { ticks: { color: '#a8b0c0' }, grid: { color: 'rgba(255,255,255,.08)' } },
         y: { ticks: { color: '#a8b0c0' }, grid: { color: 'rgba(255,255,255,.08)' } }
@@ -120,7 +114,6 @@
     }
   });
 
-  // ===== Calendário =====
   const events = {{ events|tojson }};
   document.addEventListener('DOMContentLoaded', function() {
     const el = document.getElementById('calendar');
