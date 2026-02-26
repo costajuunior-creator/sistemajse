@@ -1,0 +1,11 @@
+<!-- COLE ISSO DENTRO DO <head> DO base.html -->
+
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#2563eb">
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/service-worker.js')
+    .then(function() { console.log('Service Worker registrado'); });
+}
+</script>
