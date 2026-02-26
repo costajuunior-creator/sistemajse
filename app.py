@@ -1,129 +1,168 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="grid">
-  <div class="card">
-    <div class="h1" style="font-size:22px;">Nova tarefa</div>
-    <p class="p">Adicione uma tarefa rápida e mantenha tudo organizado.</p>
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+import os
 
-    <form method="post">
-      <label>Tarefa</label>
-      <input name="title" placeholder="Ex: Estudar 30 min" required>
-      <button class="btn" type="submit">Adicionar</button>
-    </form>
-  </div>
+app = Flask(__name__)
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "troque-por-uma-chave-grande-e-secreta")
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-  <div class="card">
-    <div class="h1" style="font-size:22px;">Resumo</div>
-    <p class="p">Você está logado como <strong>{{ current_user.email }}</strong>.</p>
-    <div class="row" style="margin-top:10px;">
-      <div class="btn-ghost" style="flex:1; text-align:center;">Pendentes: {{ pending|length }}</div>
-      <div class="btn-ghost" style="flex:1; text-align:center;">Concluídas: {{ done|length }}</div>
-    </div>
-  </div>
-</div>
+db = SQLAlchemy(app)
 
-<div class="grid" style="margin-top:16px;">
-  <div class="card">
-    <div class="h1" style="font-size:20px;">Pendentes</div>
-    <p class="p">Clique em “Concluir” quando terminar.</p>
+login_manager = LoginManager()
+login_manager.login_view = "login"
+login_manager.init_app(app)
 
-    {% for t in pending %}
-      <div class="task">
-        <div>
-          <div class="title">{{ t.title }}</div>
-          <div class="meta">Criada em {{ t.created_at.strftime("%d/%m/%Y %H:%M") }}</div>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <form method="post" action="{{ url_for('toggle_task', task_id=t.id) }}">
-            <button class="btn-ghost" type="submit">Concluir</button>
-          </form>
-          <form method="post" action="{{ url_for('delete_task', task_id=t.id) }}">
-            <button class="btn-danger" type="submit">Excluir</button>
-          </form>
-        </div>
-      </div>
-    {% else %}
-      <p class="p">Nenhuma tarefa pendente ✅</p>
-    {% endfor %}
-  </div>
 
-  <div class="card">
-    <div class="h1" style="font-size:20px;">Concluídas</div>
-    <p class="p">Você pode “Reabrir” se precisar.</p>
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(180), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    {% for t in done %}
-      <div class="task done">
-        <div>
-          <div class="title">{{ t.title }}</div>
-          <div class="meta">Criada em {{ t.created_at.strftime("%d/%m/%Y %H:%M") }}</div>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <form method="post" action="{{ url_for('toggle_task', task_id=t.id) }}">
-            <button class="btn-ghost" type="submit">Reabrir</button>
-          </form>
-          <form method="post" action="{{ url_for('delete_task', task_id=t.id) }}">
-            <button class="btn-danger" type="submit">Excluir</button>
-          </form>
-        </div>
-      </div>
-    {% else %}
-      <p class="p">Nenhuma tarefa concluída ainda.</p>
-    {% endfor %}
-  </div>
-</div>
 
-<div class="grid" style="margin-top:16px;">
-  <div class="card">
-    <div class="h1" style="font-size:20px;">Gráficos</div>
-    <p class="p">Visão rápida das tarefas nos últimos 7 dias.</p>
-    <div style="height:260px;">
-      <canvas id="tasksChart"></canvas>
-    </div>
-  </div>
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    title = db.Column(db.String(140), nullable=False)
+    done = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-  <div class="card">
-    <div class="h1" style="font-size:20px;">Calendário</div>
-    <p class="p">Suas tarefas aparecem no dia em que foram criadas.</p>
-    <div id="calendar" class="calendar"></div>
-  </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
 
-<script>
-  const stats = {{ stats|tojson }};
-  const ctx = document.getElementById('tasksChart');
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: stats.labels,
-      datasets: [
-        { label: 'Criadas', data: stats.created, tension: 0.35 },
-        { label: 'Concluídas', data: stats.completed, tension: 0.35 }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#e5e7eb' } } },
-      scales: {
-        x: { ticks: { color: '#a8b0c0' }, grid: { color: 'rgba(255,255,255,.08)' } },
-        y: { ticks: { color: '#a8b0c0' }, grid: { color: 'rgba(255,255,255,.08)' } }
-      }
-    }
-  });
 
-  const events = {{ events|tojson }};
-  document.addEventListener('DOMContentLoaded', function() {
-    const el = document.getElementById('calendar');
-    const cal = new FullCalendar.Calendar(el, {
-      initialView: 'dayGridMonth',
-      height: 380,
-      headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
-      events: events
-    });
-    cal.render();
-  });
-</script>
-{% endblock %}
+@app.route("/")
+def home():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+    return redirect(url_for("login"))
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        if not email or not password:
+            flash("Preencha email e senha.", "error")
+            return redirect(url_for("register"))
+
+        if User.query.filter_by(email=email).first():
+            flash("Esse email já está cadastrado.", "error")
+            return redirect(url_for("register"))
+
+        user = User(email=email, password_hash=generate_password_hash(password))
+        db.session.add(user)
+        db.session.commit()
+
+        flash("Conta criada! Faça login.", "ok")
+        return redirect(url_for("login"))
+
+    return render_template("register.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        user = User.query.filter_by(email=email).first()
+        if not user or not check_password_hash(user.password_hash, password):
+            flash("Email ou senha inválidos.", "error")
+            return redirect(url_for("login"))
+
+        login_user(user)
+        return redirect(url_for("dashboard"))
+
+    return render_template("login.html")
+
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("login"))
+
+
+@app.route("/dashboard", methods=["GET", "POST"])
+@login_required
+def dashboard():
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        if not title:
+            flash("Digite a tarefa.", "error")
+            return redirect(url_for("dashboard"))
+
+        db.session.add(Task(user_id=current_user.id, title=title))
+        db.session.commit()
+        flash("Tarefa adicionada!", "ok")
+        return redirect(url_for("dashboard"))
+
+    tasks = (Task.query
+             .filter_by(user_id=current_user.id)
+             .order_by(Task.created_at.desc())
+             .all())
+
+    pending = [t for t in tasks if not t.done]
+    done = [t for t in tasks if t.done]
+
+    # stats para gráfico (últimos 7 dias)
+    today = datetime.utcnow().date()
+    days = [today - timedelta(days=i) for i in range(6, -1, -1)]
+    labels = [d.strftime("%d/%m") for d in days]
+    created_counts = [sum(1 for t in tasks if t.created_at.date() == d) for d in days]
+    completed_counts = [sum(1 for t in done if t.created_at.date() == d) for d in days]
+
+    stats = {"labels": labels, "created": created_counts, "completed": completed_counts}
+
+    # eventos para calendário
+    events = [{
+        "title": ("✅ " if t.done else "🕒 ") + t.title,
+        "start": t.created_at.strftime("%Y-%m-%d"),
+        "allDay": True
+    } for t in tasks]
+
+    return render_template(
+        "dashboard.html",
+        tasks=tasks,
+        pending=pending,
+        done=done,
+        stats=stats,
+        events=events
+    )
+
+
+@app.post("/toggle/<int:task_id>")
+@login_required
+def toggle_task(task_id):
+    t = Task.query.filter_by(id=task_id, user_id=current_user.id).first_or_404()
+    t.done = not t.done
+    db.session.commit()
+    return redirect(url_for("dashboard"))
+
+
+@app.post("/delete/<int:task_id>")
+@login_required
+def delete_task(task_id):
+    t = Task.query.filter_by(id=task_id, user_id=current_user.id).first_or_404()
+    db.session.delete(t)
+    db.session.commit()
+    flash("Tarefa excluída.", "ok")
+    return redirect(url_for("dashboard"))
+
+
+with app.app_context():
+    db.create_all()
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
